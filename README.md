@@ -16,5 +16,7 @@ You will need to have Docker, PHP 8.3 and composer installed to continue with th
 - execute `./vendor/bin/sail composer install` to install dependencies with proper platform requirements
 - execute `./vendor/bin/sail artisan migrate --seed` to run the migrations. `--seed` option will create an initial user. This user will be used as a mock of authenticated user for creating the relationship with `Task` models
 - execute `./vendor/bin/sail test` to run all tests
+- tests are also being executed via GitHub Actions when push or merge to master is detected [https://github.com/srdjanmarjanovic/taskproject_pixelbeard/actions](https://github.com/srdjanmarjanovic/taskproject_pixelbeard/actions)
+
 
 **API documentation is available on the following endpoint:** [http://localhost/docs/api](http://localhost/docs/api)
