@@ -2,7 +2,8 @@
 
 namespace Tests\Feature\Models;
 
-use PHPUnit\Framework\Attributes\DataProvider;
+use App\Http\Resources\TaskResource;
+use App\Models\Task;
 use PHPUnit\Framework\Attributes\TestWith;
 use Tests\TestCase;
 
@@ -28,19 +29,7 @@ class TaskTest extends TestCase
     public function test_task_can_be_updated(): void
     {
         // First create a task
-        $data = [
-            'title' => 'Test Title',
-            'description' => 'Lorem Ipsum Dolor sit amet.',
-            'completed' => true,
-        ];
-
-        $response = $this->postJson('/api/tasks', $data);
-
-        $response
-            ->assertStatus(201)
-            ->assertJson([
-                'data' => $data,
-            ]);
+        $task = $this->createSampleTask();
 
         // Then test updating the task
         $newData = [
@@ -48,7 +37,7 @@ class TaskTest extends TestCase
             'description' => 'UPDATED DESCRIPTION.',
             'completed' => false,
         ];
-        $response = $this->putJson("/api/tasks/{$response['data']['id']}", $newData);
+        $response = $this->putJson("/api/tasks/{$task->id}", $newData);
 
         $response
             ->assertStatus(200)
@@ -60,16 +49,11 @@ class TaskTest extends TestCase
     public function test_task_can_be_deleted(): void
     {
         // First create a task
-        $data = [
-            'title' => 'Test Title',
-            'description' => 'Lorem Ipsum Dolor sit amet.',
-            'completed' => true,
-        ];
-        $response = $this->postJson('/api/tasks', $data);
+        $task = $this->createSampleTask();
 
         // Then test deleting the task
-        $response = $this->deleteJson("/api/tasks/{$response['data']['id']}");
-        
+        $response = $this->deleteJson("/api/tasks/{$task->id}");
+
         $response
             ->assertStatus(200);
     }
@@ -77,38 +61,24 @@ class TaskTest extends TestCase
     public function test_task_can_be_found(): void
     {
         // First create a task
-        $data = [
-            'title' => 'Test Title',
-            'description' => 'Lorem Ipsum Dolor sit amet.',
-            'completed' => true,
-            'created_by_name' => $this->firstUser->name,
-            'updated_by_name' => $this->firstUser->name,
-        ];
-        $response = $this->postJson('/api/tasks', $data);
+        $task = $this->createSampleTask();
+
 
         // Then test retrieving it by id
-        $response = $this->getJson("/api/tasks/{$response['data']['id']}");
-        
+        $response = $this->getJson("/api/tasks/{$task->id}");
+
         $response
             ->assertStatus(200)
             ->assertJson([
-                'data' => $data,
+                'data' => (array)(new TaskResource($task))['data'],
             ]);
     }
 
     public function test_all_tasks_can_be_found(): void
     {
-        // First create several tasks
-        $data = [
-            'title' => 'Test Title',
-            'description' => 'Lorem Ipsum Dolor sit amet.',
-            'completed' => true,
-            'created_by_name' => $this->firstUser->name,
-            'updated_by_name' => $this->firstUser->name,
-        ];
-
+        // First create several tasks via API
         $allData = [];
-        for($i = 1; $i <= 5; $i++) {
+        for ($i = 1; $i <= 5; $i++) {
             $data = [
                 'title' => "Test Title {$i}",
                 'description' => 'Lorem Ipsum Dolor sit amet.',
@@ -116,14 +86,13 @@ class TaskTest extends TestCase
                 'created_by_name' => $this->firstUser->name,
                 'updated_by_name' => $this->firstUser->name,
             ];
-
             $allData[] = $data;
             $this->postJson('/api/tasks', $data);
         }
 
         // Reverse $allData to simulate order descending
         $expectedPagedData = array_chunk(array_reverse($allData), 2);
-        
+
         // Then test endpoint finds them all, page by page
         $page1 = $this->getJson("/api/tasks?" . http_build_query([
             'page' => 1,
@@ -131,7 +100,7 @@ class TaskTest extends TestCase
         ]));
 
         $tasksUrl = route('tasks.index');
-        
+
         $page1
             ->assertStatus(200)
             ->assertJson([
@@ -287,23 +256,13 @@ class TaskTest extends TestCase
             ]);
     }
 
-    public function test_task_updating_requires_at_least_one_field() 
+    public function test_task_updating_requires_at_least_one_field()
     {
-         // First create a task
-         $data = [
-            'title' => 'Test Title',
-            'description' => 'Lorem Ipsum Dolor sit amet.',
-            'completed' => true,
-        ];
-        $response = $this->postJson('/api/tasks', $data);
-        $response
-            ->assertStatus(201)
-            ->assertJson([
-                'data' => $data,
-            ]);
-        
+        // First create a task
+        $task = $this->createSampleTask();
+
         // Then try to update a task without any value
-        $response = $this->putJson("/api/tasks/{$response['data']['id']}", []);
+        $response = $this->putJson("/api/tasks/{$task->id}", []);
 
         $response
             ->assertStatus(422)
@@ -313,29 +272,28 @@ class TaskTest extends TestCase
                 'completed' => 'The completed field is required when none of description / title are present.'
             ]);
     }
-    
+
     #[TestWith(['title', 'New Title'])]
     #[TestWith(['description', 'New Description'])]
     #[TestWith(['completed', true])]
     public function test_task_can_be_updated_with_at_least_one_field($fieldName, $newValue)
     {
         // First create a task
-        $data = [
-            'title' => 'Test Title',
-            'description' => 'Lorem Ipsum Dolor sit amet.',
-            'completed' => true,
-        ];
-        $response = $this->postJson('/api/tasks', $data);
-        $response
-            ->assertStatus(201)
-            ->assertJson([
-                'data' => $data,
-            ]);
-        
+        $task = $this->createSampleTask();
+
         // Then try to update a single field of the task
-        $response = $this->putJson("/api/tasks/{$response['data']['id']}", [$fieldName => $newValue]);
+        $response = $this->putJson("/api/tasks/{$task->id}", [$fieldName => $newValue]);
 
         $response
             ->assertStatus(200);
+    }
+
+    private function createSampleTask(): Task
+    {
+        return Task::factory()->create([
+            'title' => 'Test Title',
+            'description' => 'Lorem Ipsum Dolor sit amet.',
+            'completed' => true,
+        ]);
     }
 }
